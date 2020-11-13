@@ -21,5 +21,4 @@ public class Application {
             return "Hello " + (oidcUser != null ? oidcUser.getFullName() : "anonymous");
         }
     }
-
 }
