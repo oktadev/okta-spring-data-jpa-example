@@ -14,12 +14,11 @@ public class Application {
         SpringApplication.run(Application.class, args);
     }
 
-		@RestController
+    @RestController
     static class SimpleRestController {
         @GetMapping("/")
         String sayHello(@AuthenticationPrincipal OidcUser oidcUser) {
             return "Hello " + (oidcUser != null ? oidcUser.getFullName() : "anonymous");
         }
     }
-
 }

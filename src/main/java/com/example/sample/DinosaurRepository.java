@@ -1,4 +1,5 @@
 package com.example.sample;
+
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.rest.core.config.RepositoryRestConfiguration;
