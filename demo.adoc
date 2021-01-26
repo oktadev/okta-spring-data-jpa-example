@@ -7,7 +7,7 @@
 
 In this demo, I’ll show how to build an OAuth 2.0 Resource Server with Spring Data and JPA. I’ll also show how to test your secure API using HTTPie.
 
-This demo is an abbreviated version of https://developer.okta.com/blog/2020/11/20/spring-data-jpa[Build a Secure Spring Data JPA Resource Server], designed for live coding.
+This tutorial is an abbreviated version of https://developer.okta.com/blog/2020/11/20/spring-data-jpa[Build a Secure Spring Data JPA Resource Server], designed for live coding.
 
 **Prerequisites:**
 
@@ -33,7 +33,7 @@ If you don't have an account, you'll be prompted to create one.
 +
 NOTE: The authentication process will use OpenID Connect (OIDC). If you’re not familiar with OpenID Connect, resource servers, and all that jazz, you might want to check out https://developer.okta.com/blog/2019/10/21/illustrated-guide-to-oauth-and-oidc[An Illustrated Guide to OAuth and OpenID Connect].
 
-. The redirect-to-login behavior is the default. Let's change that to a JWT-based, resource server flow. [`ss-allow-all`]
+. The redirect-to-login behavior is the default. Let's change that to a JWT-based, resource server flow. [`ss-config-allow`]
 +
 [source,java]
 ----
@@ -56,7 +56,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 }
 ----
 
-. Update the `SimpleRestController` static inner class in the `Application.java` file so that it doesn’t cause an error if there is an anonymous user.
+. Update the `SimpleRestController` class in the `Application.java` file so that it doesn’t cause an error if there is an anonymous user.
 +
 [source,java]
 ----
@@ -89,14 +89,31 @@ Hello anonymous
 
 What this world needs right now is some gigantic, prehistoric monsters, so, in order to demonstrate how to use Spring Data JPA, you’re going to create a dinosaur domain model and a dinosaur repository.
 
-. Add the following dependencies to your Maven `pom.xml` file:
+. Add the following Spring Data dependencies to your Maven `pom.xml` file: [`spring-data-deps`]
++
+[source,xml]
+----
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-rest</artifactId>
+</dependency>
+<dependency>
+    <groupId>com.h2database</groupId>
+    <artifactId>h2</artifactId>
+    <scope>runtime</scope>
+</dependency>
+<dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <optional>true</optional>
+</dependency>
+----
 
-     spring-boot-starter-data-jpa
-     spring-boot-starter-data-rest
-     h2
-     lombok (use provided scope)
-
-. Create a dinosaur data model class. If you’re doing this tutorial in an IDE, you may need to enable annotation processing so Lombok can generate code for you. See Lombok’s instructions { https://projectlombok.org/setup/eclipse[Eclipse], https://projectlombok.org/setup/intellij[IDEA] } for more information.
+. Create a dinosaur data model class. If you’re doing this tutorial in an IDE, you may need to enable annotation processing so Lombok can generate code for you. See Lombok’s instructions { https://projectlombok.org/setup/eclipse[Eclipse], https://projectlombok.org/setup/intellij[IDEA] } for more information. [`spring-data-dino`]
 +
 [source,java]
 ----
@@ -179,7 +196,7 @@ public interface DinosaurRepository extends CrudRepository<Dinosaur, Long> {
     @Configuration
     static class RepositoryConfig implements RepositoryRestConfigurer {
         @Override
-        public void configureRepositoryRestConfiguration(RepositoryRestConfiguration config) {
+        public void configureRepositoryRestConfiguration(RepositoryRestConfiguration config, CorsRegistry corsRegistry) {
             config.exposeIdsFor(Dinosaur.class);
         }
     }
@@ -209,8 +226,8 @@ _Remember these are recombinant, mutated dinosaurs, not actual dinosaurs, so the
 . Try to delete one of the dinosaurs.
 
      http DELETE :8080/dinosaurs/1
-
-. The response should be a 405 error. HTTP 405 is “method not allowed.” Evil laughter. And, the dinosaurs take over the world.
++
+You'll get a 405 error. HTTP 405 is “method not allowed.” Evil laughter. And, the dinosaurs take over the world.
 
 . To avert disaster, remove the two `@Override methods` from the `DinosaurRepository`.
 
@@ -283,7 +300,7 @@ http -f https://{yourOktaDomain}/oauth2/default/v1/token \
 
 . You should see your list of dinosaurs! 🦖
 
-=== Spring Data is Amazing!
+== Spring Data is Amazing!
 
 🍃 Find the code on GitHub: https://github.com/oktadeveloper/okta-spring-data-jpa-example[@oktadeveloper/okta-spring-data-jpa-example].
 
