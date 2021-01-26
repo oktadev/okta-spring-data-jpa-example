@@ -1,0 +1,307 @@
+:experimental:
+// Define unicode for Apple Command key.
+:commandkey: &#8984;
+:toc: macro
+
+== Spring Data JPA Resource Server Demo Steps
+
+In this demo, I’ll show how to build an OAuth 2.0 Resource Server with Spring Data and JPA. I’ll also show how to test your secure API using HTTPie.
+
+This tutorial is an abbreviated version of https://developer.okta.com/blog/2020/11/20/spring-data-jpa[Build a Secure Spring Data JPA Resource Server], designed for live coding.
+
+**Prerequisites:**
+
+- https://sdkman.io/[Java 11]+
+- https://httpie.org/doc#installation[HTTPie]
+- https://github.com/okta/okta-cli#installation[Okta CLI]
+
+toc::[]
+
+=== Bootstrap a Spring Data JPA Project with the Okta CLI
+
+. Open a terminal and create a directory for your project.
+
+    take spring-data-demo # take is the same as mkdir && cd
+    okta start spring-boot
++
+If you don't have an account, you'll be prompted to create one.
+
+. That's it! You can run the app and login with Okta.
+
+    cd spring-boot
+    ./mvnw spring-boot:run
++
+NOTE: The authentication process will use OpenID Connect (OIDC). If you’re not familiar with OpenID Connect, resource servers, and all that jazz, you might want to check out https://developer.okta.com/blog/2019/10/21/illustrated-guide-to-oauth-and-oidc[An Illustrated Guide to OAuth and OpenID Connect].
+
+. The redirect-to-login behavior is the default. Let's change that to a JWT-based, resource server flow. [`ss-config-allow`]
++
+[source,java]
+----
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+
+@EnableWebSecurity
+public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http
+            .authorizeRequests(authorizeRequests ->
+                authorizeRequests.antMatchers("/**").permitAll()
+                .anyRequest().authenticated())
+            .csrf().disable();
+    }
+
+}
+----
+
+. Update the `SimpleRestController` class in the `Application.java` file so that it doesn’t cause an error if there is an anonymous user.
++
+[source,java]
+----
+@RestController
+static class SimpleRestController {
+    @GetMapping("/")
+    String sayHello(@AuthenticationPrincipal OidcUser oidcUser) {
+        return "Hello " + (oidcUser != null ? oidcUser.getFullName() : "anonymous");
+    }
+}
+----
+
+. Use kbd:[Ctrl + C] to stop the running process and run it again.
+
+. Use HTTPie to test the root endpoint.
+
+    http :8080
+
+. You should see the following:
++
+[source,shell]
+----
+HTTP/1.1 200
+...
+
+Hello anonymous
+----
+
+=== Create a Dinosaur Domain Model
+
+What this world needs right now is some gigantic, prehistoric monsters, so, in order to demonstrate how to use Spring Data JPA, you’re going to create a dinosaur domain model and a dinosaur repository.
+
+. Add the following Spring Data dependencies to your Maven `pom.xml` file: [`spring-data-deps`]
++
+[source,xml]
+----
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-rest</artifactId>
+</dependency>
+<dependency>
+    <groupId>com.h2database</groupId>
+    <artifactId>h2</artifactId>
+    <scope>runtime</scope>
+</dependency>
+<dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <optional>true</optional>
+</dependency>
+----
+
+. Create a dinosaur data model class. If you’re doing this tutorial in an IDE, you may need to enable annotation processing so Lombok can generate code for you. See Lombok’s instructions { https://projectlombok.org/setup/eclipse[Eclipse], https://projectlombok.org/setup/intellij[IDEA] } for more information. [`spring-data-dino`]
++
+[source,java]
+----
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+
+@Entity
+@Getter @Setter @NoArgsConstructor
+public class Dinosaur {
+
+    @Id
+    @GeneratedValue(strategy=GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+
+    private boolean fangs;
+
+    private int numberOfArms;
+
+    private double weightTons;
+
+    @Override
+    public String toString() {
+        return String.format(
+                "Customer[id=%d, name='%s', fangs='%b', numberOfArms='%d', weightTons='%f']",
+                id, name, fangs, numberOfArms, weightTons);
+    }
+}
+----
+
+> Now, these dinosaurs aren’t wreaking much havoc in your head. You need a way to create, read, update, and delete these dinosaurs. And don’t forget the DELETE part, that’s the mistake the movie made! If they had used Spring, they would have gotten DELETE automatically for free and, while it might not have been much of a movie, they would have survived.
+
+=== Create a Spring Data Repository
+
+. Create a `DinosaurRepository`.
++
+[source,java]
+----
+import org.springframework.data.repository.CrudRepository;
+
+public interface DinosaurRepository extends CrudRepository<Dinosaur, Long> {
+}
+----
+
+. Now you can test the automatically generated REST resource. Restart and hit the `/dinosaurs` endpoint to see the response.
+
+     http :8080/dinosaurs
++
+Spring Data REST uses HATEOAS and HAL to return formatted data. Very, very briefly: HAL is a descriptive resource language that uses published links to point to resources. It allows a resource server to describe itself to its clients.
+
+. If you want to avoid exposing the REST resource entirely, you can annotate the `DinosaurRepository` in the following way. This disables the REST resource.
++
+[source,java]
+----
+@RepositoryRestResource(exported=false)
+----
+
+. If you want to hide only certain CRUD methods, you can use the `@RestResource(exported = false)` annotation on individual methods. Let’s say you want to disable the delete methods for the dinosaurs (cue maniacal laughing and hand wringing).
+
+. Update your `DinosaurRepository` to match the following:
++
+[source,java]
+----
+public interface DinosaurRepository extends CrudRepository<Dinosaur, Long> {
+    @Override
+    @RestResource(exported = false)
+    void deleteById(Long id);
+
+    @Override
+    @RestResource(exported = false)
+    void delete(Dinosaur entity);
+
+    @Configuration
+    static class RepositoryConfig implements RepositoryRestConfigurer {
+        @Override
+        public void configureRepositoryRestConfiguration(RepositoryRestConfiguration config, CorsRegistry corsRegistry) {
+            config.exposeIdsFor(Dinosaur.class);
+        }
+    }
+}
+----
++
+The general idea is to override the particular subclass method to be hidden and mark them so they’re not exported. Notice that in this case, to hide the delete methods, you have to hide both of the subclass’s delete methods.
+
+.  Create some bootstrapped demo data to be loaded into the database in `src/main/resources/data.sql`.
++
+[source,sql]
+----
+INSERT INTO dinosaur (name, fangs, number_of_arms, weight_tons) VALUES
+  ('Terror Bird', true, 2, 100),
+  ('Ankylosaurus', true, 4, 350.5),
+  ('Spinosaurus', false, 4, 500);
+----
++
+_Remember these are recombinant, mutated dinosaurs, not actual dinosaurs, so they have extra arms._
+
+=== Test Your Spring Data JPA-Powered REST API
+
+. Restart your app and perform a GET request on the `/dinosaur` REST endpoint.
+
+     http :8080/dinosaurs
+
+. Try to delete one of the dinosaurs.
+
+     http DELETE :8080/dinosaurs/1
++
+You'll get a 405 error. HTTP 405 is “method not allowed.” Evil laughter. And, the dinosaurs take over the world.
+
+. To avert disaster, remove the two `@Override methods` from the `DinosaurRepository`.
+
+. Restart and try again. You should get a 204 this time. HTTP 204 implies “no content.” The server has successfully performed the delete and has nothing else to say about it. Crisis averted!
+
+The only thing left to do is to secure the whole thing so random foreign net-bots aren’t creating dinosaurs willy-nilly.
+
+=== Implement an OAuth 2.0 Resource Server
+
+Thanks to Okta’s Spring Boot Starter, most of the OAuth is already in place.
+
+. Update `SecurityConfiguration` to authorize all requests using JWTs and OAuth 2.0.
++
+[source,java]
+----
+@Override
+protected void configure(HttpSecurity http) throws Exception {
+    http
+        .authorizeRequests(authorizeRequests -> authorizeRequests.anyRequest().authenticated())
+        .oauth2ResourceServer().jwt();
+}
+----
+
+. How does Spring Security know what to use for your Okta settings? Check your `application.properties`.
++
+[source,properties]
+----
+okta.oauth2.issuer=https://{yourOktaDomain}/oauth2/default
+okta.oauth2.client-id={yourClientId}
+okta.oauth2.client-secret={yourClientSecret}
+----
+
+. Restart, run `http :8080/dinosaurs` and see it's locked down.
+
+    HTTP/1.1 401
+
+=== Generate an Access Token JWT
+
+Your application is now expecting a JSON Web Token (JWT) when you make requests.
+
+. To generate a JWT, you can use the https://oidcdebugger.com/[OIDC Debugger].
+
+. Before you try, add a login redirect URI of `https://oidcdebugger.com/debug` to your app on Okta.
+
+. Open the OIDC Debugger and use `https://{yourOktaDomain}/oauth2/default/v1/authorize` for the Authorization URI. Response type should be `code`.
+
+. Click **SEND REQUEST**, grab the code, and exchange it for a token.
++
+[source,shell]
+----
+http -f https://{yourOktaDomain}/oauth2/default/v1/token \
+  grant_type=authorization_code \
+  code={yourAuthCode} \
+  client_id={clientId} \
+  client_secret={clientSecret} \
+  redirect_uri=https://oidcdebugger.com/debug
+----
+
+. You should get a JSON response that includes an access token and an ID token.
+
+=== Access Your API with an OAuth 2.0 Bearer Token
+
+. Copy the resulting `access_token` and set the token value as a shell variable.
+
+      TOKEN=eyJraWQiOiJxMm5rZmtwUDRhMlJLV2REU2JfQ...
+
+. Now you can use the token in a request.
+
+      http :8080/dinosaurs "Authorization: Bearer $TOKEN"
+
+. You should see your list of dinosaurs! 🦖
+
+== Spring Data is Amazing!
+
+🍃 Find the code on GitHub: https://github.com/oktadeveloper/okta-spring-data-jpa-example[@oktadeveloper/okta-spring-data-jpa-example].
+
+👀 Read the blog post: https://developer.okta.com/blog/2020/11/20/spring-data-jpa[Build a Secure Spring Data JPA Resource Server].
