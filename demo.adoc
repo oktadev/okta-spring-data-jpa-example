@@ -300,8 +300,15 @@ http -f https://{yourOktaDomain}/oauth2/default/v1/token \
 
 . You should see your list of dinosaurs! 🦖
 
+[TIP]
+====
+From http://disq.us/p/2dxo2gv[Shantanu Sardal]:
+
+After changing the application to use JWT authorization, change the Controller method to use (`@AuthenticationPrincipal Jwt jwtPrincipal`) instead of (`@AuthenticationPrincipal OidcUser oidcUser`), otherwise the `oidcUser` object will be `null`.
+====
+
 == Spring Data is Amazing!
 
 🍃 Find the code on GitHub: https://github.com/oktadeveloper/okta-spring-data-jpa-example[@oktadeveloper/okta-spring-data-jpa-example].
 
-👀 Read the blog post: https://developer.okta.com/blog/2020/11/20/spring-data-jpa[Build a Secure Spring Data JPA Resource Server].
+🔥 Read the blog post: https://developer.okta.com/blog/2020/11/20/spring-data-jpa[Build a Secure Spring Data JPA Resource Server].
