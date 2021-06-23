@@ -7,7 +7,7 @@ This example shows you how to build an OAuth 2.0 resource server using Spring Da
 Before running this sample, you will need the following:
 
 * [Java 11+](https://sdkman.io/jdks)
-* [The Okta CLI Tool](https://github.com/okta/okta-cli/blob/master/README.md#installation)
+* [The Okta CLI Tool](https://github.com/okta/okta-cli/#installation)
 * An Okta Developer Account, create one using `okta register`, or configure an existing one with `okta login`
 
 > [Okta](https://developer.okta.com/) has Authentication and User Management APIs that reduce development time with instant-on, scalable user infrastructure. Okta's intuitive API and expert support make it easy for developers to authenticate, manage and secure users and roles in any application.
